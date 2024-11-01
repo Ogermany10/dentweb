@@ -40,9 +40,11 @@ class Patient(db.Model):
 class Diagnosis(db.Model):
     __bind_key__ = 'patients'
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
+    name = db.Column(db.String(150), nullable=False)  # ชื่อผู้ป่วย
+    surname = db.Column(db.String(150), nullable=False)  # นามสกุลผู้ป่วย
     diagnosis = db.Column(db.String(255), nullable=True)
     icd10 = db.Column(db.String(10), nullable=True)
+
 
 @app.route('/')
 def index():
@@ -79,6 +81,26 @@ def reg():
         return {"success": True, "message": "ลงทะเบียนสำเร็จ!"}, 200
     return render_template('reg.html')
 
+
+@app.route('/details/<string:dental_number>')
+def details(dental_number):
+    # ดึงข้อมูลการวินิจฉัยและรายละเอียดการเยี่ยมของผู้ป่วย
+    results = db.session.query(Patient, Diagnosis).filter(Patient.dental_num == dental_number).all()
+    
+    if not results: 
+        return jsonify([])
+
+    details_list = []
+    for patient, diagnosis in results:
+        details_list.append({
+            "date": patient.date.strftime("%Y-%m-%d"),
+            "diagnosis": diagnosis.diagnosis,
+            "icd_10": diagnosis.icd10,
+            "type_of_visit": patient.visit_type,
+        })
+    
+    return jsonify(details_list)
+
 @app.route('/main')
 def main():
     patients = Patient.query.all()
@@ -95,7 +117,8 @@ def search_results():
     filter_type = data.get("filterType")
     filter_value = data.get("filterValue", "").lower()
 
-    query = Patient.query
+    query = db.session.query(Patient, Diagnosis).filter(Patient.name == Diagnosis.name, Patient.surname == Diagnosis.surname)
+
     if filter_type == "name":
         query = query.filter(Patient.name.ilike(f"%{filter_value}%"))
     elif filter_type == "surname":
@@ -103,9 +126,9 @@ def search_results():
     elif filter_type == "dental_number":
         query = query.filter(Patient.dental_num.ilike(f"%{filter_value}%"))
     elif filter_type == "diagnosis":
-        query = query.filter(Patient.diagnosis.ilike(f"%{filter_value}%"))
+        query = query.filter(Diagnosis.diagnosis.ilike(f"%{filter_value}%"))
     elif filter_type == "icd_10":
-        query = query.filter(Patient.icd10.ilike(f"%{filter_value}%"))
+        query = query.filter(Diagnosis.icd10.ilike(f"%{filter_value}%"))
     elif filter_type == "type_of_visit":
         query = query.filter(Patient.visit_type.ilike(f"%{filter_value}%"))
     elif filter_type == "date":
@@ -120,11 +143,11 @@ def search_results():
         "name": patient.name,
         "surname": patient.surname,
         "dental_number": patient.dental_num,
-        "diagnosis": patient.diagnosis,
-        "icd_10": patient.icd10,
+        "diagnosis": diagnosis.diagnosis,
+        "icd_10": diagnosis.icd10,
         "type_of_visit": patient.visit_type,
         "date": patient.date.strftime("%Y-%m-%d")
-    } for patient in results])
+    } for patient, diagnosis in results])
 
 
 @app.route('/add', methods=['GET', 'POST'])
@@ -153,12 +176,17 @@ def add():
         icd10_codes = request.form.getlist('icd10[]')
         
         for diagnosis_text, icd10_code in zip(diagnoses, icd10_codes):
-            new_diagnosis = Diagnosis(patient_id=new_patient.id, diagnosis=diagnosis_text, icd10=icd10_code)
+            new_diagnosis = Diagnosis(
+                name=name,
+                surname=surname,
+                diagnosis=diagnosis_text,
+                icd10=icd10_code
+            )
             db.session.add(new_diagnosis)
 
         db.session.commit()
-        flash("เพิ่มข้อมูลผู้ป่วยและการวินิจฉัยสำเร็จ!")
-        return redirect(url_for('main'))
+        
+        return redirect(url_for('add'))
     
     return render_template('add.html')
 

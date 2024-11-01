@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='search.css') }}">
+   
     <title>Search Page</title>
 </head>
 <body>
@@ -16,6 +17,8 @@
             </a>
             <ul class="menu-links">
                 <li><a href="{{ url_for('main') }}">Home</a></li>
+                <li><a href="{{ url_for('add') }}">Add</a></li>
+                <li><a href="{{ url_for('search') }}">Search</a></li>
                 <li><a href="{{ url_for('index') }}">Logout</a></li>
             </ul>
         </nav>
@@ -32,8 +35,16 @@
                 <option value="type_of_visit">Type of Visit</option>
                 <option value="date">Date</option>
             </select>
-            <input type="text" id="filter-input" name="filter_value" placeholder="Enter Name" />
-            <button type="button" onclick="performSearch()">Search</button>
+
+            <input type="text" id="filter-input" name="filter_value" placeholder="Enter Name" style="display: inline;" onkeydown="handleEnter(event)" />
+            <select id="visit-type-select" style="display: none;">
+                <option value="">Select Visit Type</option>
+                <option value="New patient">New Patient</option>
+                <option value="Follow up">Follow Up</option>
+            </select>
+
+            <button type="button" class="button" onclick="performSearch()">Search</button>
+            <button type="button" class="reset-button" onclick="resetFilters()">Reset</button>
         </section>
 
         <!-- Table to display search results -->
@@ -50,7 +61,6 @@
                 </tr>
             </thead>
             <tbody id="table-body">
-                <!-- Filtered search results will be populated here -->
             </tbody>
         </table>
     </main>
@@ -59,42 +69,48 @@
         function updatePlaceholder() {
             const filterType = document.getElementById("filter-type").value;
             const filterInput = document.getElementById("filter-input");
+            const visitTypeSelect = document.getElementById("visit-type-select");
 
-            switch (filterType) {
-                case "name":
-                    filterInput.placeholder = "Enter Name";
-                    filterInput.type = "text";
-                    break;
-                case "surname":
-                    filterInput.placeholder = "Enter Surname";
-                    filterInput.type = "text";
-                    break;
-                case "dental_number":
-                    filterInput.placeholder = "Enter Dental Number";
-                    filterInput.type = "text";
-                    break;
-                case "diagnosis":
-                    filterInput.placeholder = "Enter Diagnosis";
-                    filterInput.type = "text";
-                    break;
-                case "icd_10":
-                    filterInput.placeholder = "Enter ICD-10 Code";
-                    filterInput.type = "text";
-                    break;
-                case "type_of_visit":
-                    filterInput.placeholder = "Enter Type of Visit";
-                    filterInput.type = "text";
-                    break;
-                case "date":
-                    filterInput.placeholder = "Select Date";
-                    filterInput.type = "date";
-                    break;
+            // Reset the visibility of fields
+            filterInput.style.display = "none";
+            visitTypeSelect.style.display = "none";
+
+            if (filterType === "type_of_visit") {
+                visitTypeSelect.style.display = "inline";
+            } else {
+                filterInput.style.display = "inline";
+                switch (filterType) {
+                    case "name":
+                        filterInput.placeholder = "Enter Name";
+                        filterInput.type = "text";
+                        break;
+                    case "surname":
+                        filterInput.placeholder = "Enter Surname";
+                        filterInput.type = "text";
+                        break;
+                    case "dental_number":
+                        filterInput.placeholder = "Enter Dental Number";
+                        filterInput.type = "text";
+                        break;
+                    case "diagnosis":
+                        filterInput.placeholder = "Enter Diagnosis";
+                        filterInput.type = "text";
+                        break;
+                    case "icd_10":
+                        filterInput.placeholder = "Enter ICD-10 Code";
+                        filterInput.type = "text";
+                        break;
+                    case "date":
+                        filterInput.placeholder = "Select Date";
+                        filterInput.type = "date";
+                        break;
+                }
             }
         }
 
         function performSearch() {
             const filterType = document.getElementById("filter-type").value;
-            const filterValue = document.getElementById("filter-input").value;
+            const filterValue = filterType === "type_of_visit" ? document.getElementById("visit-type-select").value : document.getElementById("filter-input").value;
             const table = document.getElementById("result-table");
             const tableBody = document.getElementById("table-body");
 
@@ -110,14 +126,14 @@
                 tableBody.innerHTML = "";
                 if (data.length > 0) {
                     table.style.display = "table";
-                    data.forEach(item => {
+                    data.forEach((item) => {
                         const row = document.createElement("tr");
                         row.innerHTML = `
                             <td>${item.name}</td>
                             <td>${item.surname}</td>
                             <td>${item.dental_number}</td>
-                            <td>${item.diagnosis}</td>
-                            <td>${item.icd_10}</td>
+                            <td>${item.diagnosis || ""}</td>  <!-- ใช้ค่าว่างถ้า diagnosis ไม่มีค่า -->
+                            <td>${item.icd_10 || ""}</td>     <!-- ใช้ค่าว่างถ้า icd_10 ไม่มีค่า -->
                             <td>${item.type_of_visit}</td>
                             <td>${item.date}</td>
                         `;
@@ -129,6 +145,23 @@
                 }
             })
             .catch(error => console.error('Error:', error));
+        }
+
+        function resetFilters() {
+            // Reset filter type to default
+            document.getElementById("filter-type").value = "name";
+            updatePlaceholder(); // Update placeholder based on default filter type
+            
+            // Reset input fields
+            document.getElementById("filter-input").value = "";
+            document.getElementById("visit-type-select").style.display = "none"; // Hide visit type select
+            document.getElementById("visit-type-select").value = ""; // Reset visit type select
+        }
+        
+        function handleEnter(event) {
+            if (event.key === "Enter") {
+                performSearch();
+            }
         }
     </script>
 </body>
